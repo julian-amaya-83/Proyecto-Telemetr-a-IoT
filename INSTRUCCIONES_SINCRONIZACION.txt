@@ -1,0 +1,122 @@
+INSTRUCCIONES PARA SINCRONIZAR EL PROYECTO CON GITHUB
+========================================================
+
+Repositorio local
+-----------------
+Ruta:
+C:\Users\lenovo\Documents\ChatGPT\desarrollo de aplicaciones
+
+Repositorio remoto:
+https://github.com/julian-amaya-83/Proyecto-Telemetr-a-IoT.git
+
+Rama principal:
+main
+
+1. Instalar Git
+---------------
+Si Git no esta instalado, descargar Git for Windows desde:
+https://git-scm.com/download/win
+
+Despues de instalarlo, reiniciar Visual Studio Code.
+
+2. Abrir la carpeta correcta en Visual Studio Code
+--------------------------------------------------
+En Visual Studio Code seleccionar:
+
+File > Open Folder...
+
+Y abrir solamente esta carpeta:
+
+C:\Users\lenovo\Documents\ChatGPT\desarrollo de aplicaciones
+
+No abrir la carpeta Proyecto-Telemetr-a-IoT como repositorio separado.
+
+3. Verificar Git y el repositorio
+---------------------------------
+Abrir una terminal dentro de Visual Studio Code y ejecutar:
+
+cd "C:\Users\lenovo\Documents\ChatGPT\desarrollo de aplicaciones"
+git --version
+git status
+git remote -v
+
+El remoto debe mostrar:
+
+https://github.com/julian-amaya-83/Proyecto-Telemetr-a-IoT.git
+
+4. Crear una copia de seguridad
+-------------------------------
+Antes de mezclar cambios, hacer una copia de la carpeta del proyecto en otra ubicacion.
+
+5. Guardar los cambios locales
+------------------------------
+Ejecutar:
+
+git add -A
+git commit -m "chore: consolidar repositorio local"
+
+Si Git indica que no hay cambios para confirmar, continuar con el siguiente paso.
+
+6. Descargar los cambios de GitHub
+----------------------------------
+Ejecutar:
+
+git fetch origin
+
+7. Integrar los cambios remotos
+--------------------------------
+Ejecutar:
+
+git pull --rebase origin main
+
+Este comando integra los cambios de GitHub sin sobrescribir automaticamente los cambios locales.
+
+8. Resolver conflictos si aparecen
+-----------------------------------
+Si Git informa conflictos:
+
+- Abrir en Visual Studio Code los archivos marcados.
+- Revisar las secciones indicadas por Git.
+- Conservar la version correcta.
+- Guardar los archivos.
+- Ejecutar:
+
+git add -A
+git rebase --continue
+
+Repetir el proceso hasta que termine el rebase.
+
+9. Subir los cambios a GitHub
+-----------------------------
+Cuando no haya conflictos, ejecutar:
+
+git push origin main
+
+10. Confirmar que todo esta sincronizado
+----------------------------------------
+Ejecutar:
+
+git status
+
+El resultado esperado es similar a:
+
+Your branch is up to date with 'origin/main'.
+working tree clean
+
+Desde ese momento, el flujo normal sera:
+
+Antes de trabajar:
+git pull --rebase origin main
+
+Despues de trabajar:
+git add -A
+git commit -m "descripcion breve del cambio"
+git push origin main
+
+Importante
+----------
+- No usar git push --force.
+- No eliminar la carpeta .git.
+- Mantener una sola copia del repositorio abierta en Visual Studio Code.
+- Codex y Visual Studio Code trabajan sobre los archivos locales de esta misma carpeta.
+- GitHub es el repositorio remoto y se actualiza mediante git push.
