@@ -1,0 +1,12 @@
+{
+  "device_id": "HYD-001",
+  "http_url": "http://127.0.0.1:8000/api/telemetry",
+  "interval_seconds": 15,
+  "timeout_seconds": 5,
+  "seed": 42,
+  "variables": {
+    "flow_l_min": {"label": "Caudal", "type": "number", "unit": "L/min", "initial": 0.0, "minimum": 0.0, "maximum": 12.0, "max_variation": 1.5, "decimals": 2, "enabled": true},
+    "pressure_kpa": {"label": "Presión", "type": "number", "unit": "kPa", "initial": 200.0, "minimum": 100.0, "maximum": 250.0, "max_variation": 5.0, "decimals": 2, "enabled": true},
+    "consumption_valve_open": {"label": "Válvula de consumo abierta", "type": "boolean", "unit": null, "initial": false, "enabled": true}
+  }
+}
