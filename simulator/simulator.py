@@ -1,7 +1,6 @@
 """Simulador hidráulico de telemetría HTTP sin dependencias externas."""
 
 import argparse
-import copy
 import json
 import logging
 import random
@@ -17,8 +16,8 @@ CONFIG_PATH = Path(__file__).with_name("config.json")
 def load_config(path):
     with open(path, encoding="utf-8") as config_file:
         config = json.load(config_file)
-    if not config["device_id"] or config["interval_seconds"] <= 0 or config["timeout_seconds"] <= 0:
-        raise ValueError("device_id, interval_seconds y timeout_seconds deben ser válidos")
+    if not config.get("http_url") or config.get("timeout_seconds", 0) <= 0:
+        raise ValueError("http_url y timeout_seconds deben ser válidos")
     required = {"flow_l_min", "pressure_kpa", "consumption_valve_open"}
     if not required.issubset(config["variables"]):
         raise ValueError("Faltan variables hidráulicas obligatorias")
@@ -27,16 +26,24 @@ def load_config(path):
 
 def get_device_configs(config):
     devices = config.get("devices")
-    if devices is None:
-        return [config]
     if not isinstance(devices, list) or not devices:
         raise ValueError("devices debe ser una lista no vacía")
     device_configs = []
+    identifiers = set()
     for device in devices:
         if not isinstance(device, dict) or not device.get("device_id"):
             raise ValueError("Cada dispositivo debe tener un device_id válido")
-        device_config = copy.deepcopy(config)
-        device_config.update(device)
+        if device["device_id"] in identifiers:
+            raise ValueError("Los device_id deben ser únicos")
+        identifiers.add(device["device_id"])
+        if device.get("scenario") not in SCENARIOS:
+            raise ValueError(f"Escenario inválido para {device['device_id']}")
+        device_config = {
+            "http_url": config["http_url"],
+            "timeout_seconds": config["timeout_seconds"],
+            "variables": config["variables"],
+            **device,
+        }
         if device_config["interval_seconds"] <= 0:
             raise ValueError("El intervalo de cada dispositivo debe ser mayor que cero")
         device_configs.append(device_config)
@@ -108,7 +115,7 @@ def send_payload(url, payload, timeout):
 def main():
     parser = argparse.ArgumentParser(description="Simula telemetría hidráulica por HTTP")
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
-    parser.add_argument("--scenario", choices=SCENARIOS, default="normal")
+    parser.add_argument("--scenario", choices=SCENARIOS, help="Sobrescribe el escenario de todos los dispositivos")
     parser.add_argument("--count", type=int, default=0, help="Lecturas por dispositivo; 0 = continuo")
     parser.add_argument("--dry-run", action="store_true", help="Genera JSON sin enviar HTTP")
     args = parser.parse_args()
@@ -119,7 +126,7 @@ def main():
     device_states = [
         {
             "config": device_config,
-            "simulator": HydraulicSimulator(device_config, args.scenario),
+            "simulator": HydraulicSimulator(device_config, args.scenario or device_config["scenario"]),
             "sent": 0,
             "next_send": time.monotonic(),
         }

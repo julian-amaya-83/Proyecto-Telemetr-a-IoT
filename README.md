@@ -1,70 +1,89 @@
 # Monitoreo hidráulico IoT experimental
 
-Proyecto inicial para simular lecturas de caudal y presión en un sistema hidráulico experimental representativo de una instalación institucional. Su propósito es preparar datos reproducibles para estudiar la identificación de operación normal, consumo anómalo y fugas controladas. No afirma que existan fugas en la Universidad de San Buenaventura.
+Proyecto para simular y conservar lecturas de caudal y presión de un sistema hidráulico experimental representativo de una instalación institucional. Su propósito es preparar datos reproducibles para estudiar la identificación de operación normal, consumo anómalo y fugas controladas. No diagnostica la red de la Universidad de San Buenaventura.
 
 ## Estado
 
-El repositorio contiene un simulador HTTP de cuatro dispositivos, un receptor temporal para pruebas locales y pruebas automatizadas del generador. Cada dispositivo conserva su propia secuencia, estado hidráulico, semilla e intervalo de envío. El backend con validación y SQLite de la Guía 3 es el siguiente incremento. MQTT queda para una implementación futura.
+La Etapa 1 SIM está publicada en la etiqueta `etapa-1-sim-v1.0`. La Etapa 2 añade un backend FastAPI que registra dispositivos, valida telemetría hidráulica y conserva las lecturas en SQLite. MQTT queda para una implementación futura.
 
 ## Estructura
 
-- `simulator/config.json`: dispositivos, URL, intervalos y fichas iniciales de variables.
-- `simulator/simulator.py`: escenarios y envío HTTP POST.
-- `simulator/receiver_test.py`: receptor temporal que imprime lecturas; no persiste datos.
-- `tests/test_simulator.py`: pruebas de contrato, rangos y escenarios.
-- `docs/propuesta-inicial.md`: problema, usuario, variables y alerta preliminar.
+- `simulator/config.json`: dispositivos, escenarios, intervalos y variables.
+- `simulator/simulator.py`: generación y envío HTTP POST.
+- `backend/main.py`: endpoints `/health` y `/api/telemetry`.
+- `backend/schemas.py`: contrato y validación con Pydantic.
+- `backend/database.py`: registro de dispositivos y persistencia SQLite.
+- `database/iot.db`: base generada localmente; no se versiona.
+- `tests/`: pruebas del simulador y del backend.
+- `docs/decisiones/persistencia.md`: decisiones del modelo de datos.
 
-## Requisitos
+## Instalación
 
-Python 3.10 o superior. El simulador y el receptor utilizan únicamente la biblioteca estándar.
-
-## Probar sin red
-
-Desde la raíz del repositorio:
+Se requiere Python 3.10 o superior. Desde la raíz del repositorio:
 
 ```powershell
-python -m simulator.simulator --scenario normal --count 5 --dry-run
-python -m simulator.simulator --scenario consumo_anomalo --count 5 --dry-run
-python -m simulator.simulator --scenario fuga --count 5 --dry-run
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend/requirements.txt
 ```
 
-## Probar HTTP local
+## Probar el simulador sin red
+
+```powershell
+python -m simulator.simulator --count 1 --dry-run
+```
+
+Cada dispositivo usa el escenario definido en `config.json`. El argumento `--scenario` permite sobrescribir temporalmente el escenario de todos.
+
+## Ejecutar backend y simulador
 
 Terminal 1:
 
 ```powershell
-python -m simulator.receiver_test
+python -m uvicorn backend.main:app --reload
 ```
+
+Compruebe `http://127.0.0.1:8000/health` y `http://127.0.0.1:8000/docs`.
 
 Terminal 2:
 
 ```powershell
-python -m simulator.simulator --scenario fuga --count 5
+python -m simulator.simulator --count 5
 ```
 
-`--count 5` genera cinco mensajes por dispositivo, es decir, veinte mensajes en total. El receptor debe imprimirlos y el simulador debe registrar respuestas HTTP 201. Detenga el receptor con Ctrl+C.
+`--count 5` produce cinco mensajes por dispositivo, veinte en total. El backend debe responder HTTP 201 y conservarlos en `database/iot.db`.
 
-## Dispositivos e intervalos
+## Dispositivos
 
-| Dispositivo | Intervalo |
-|---|---:|
-| `HYD-001` | 5 segundos |
-| `HYD-002` | 10 segundos |
-| `HYD-003` | 3 segundos |
-| `HYD-004` | 7 segundos |
+| Dispositivo | Ubicación | Escenario | Intervalo |
+|---|---|---|---:|
+| `HYD-001` | Zona A | normal | 5 segundos |
+| `HYD-002` | Zona B | consumo anómalo | 10 segundos |
+| `HYD-003` | Zona C | fuga | 3 segundos |
+| `HYD-004` | Zona D | normal | 7 segundos |
 
-Los cuatro dispositivos comienzan su primera lectura al iniciar el programa. Después, cada uno continúa de acuerdo con su intervalo. Los intervalos pueden modificarse en `simulator/config.json`.
+Cada dispositivo mantiene su propia secuencia, estado hidráulico y semilla. Se pueden agregar dispositivos mediante configuración sin modificar el endpoint.
 
 ## Ejecutar pruebas
 
 ```powershell
-python -m unittest discover -s tests -v
+python -m pytest tests -q
 ```
 
-## Contrato de telemetría
+## Validación y respuestas
 
-Cada POST a `/api/telemetry` incluye `message_id`, `device_id`, `timestamp` UTC, `sequence` y `measurements`. Cada envío contiene las tres variables habilitadas. `message_id` incorpora el dispositivo, un identificador de ejecución y la secuencia para no repetirse entre dispositivos ni tras reiniciar el simulador.
+Cada POST incluye `message_id`, `device_id`, `timestamp`, `sequence` y `measurements`. El backend valida estructura, tipos y rangos; confirma que el dispositivo esté registrado y habilitado; rechaza duplicados; y almacena las variables junto con el JSON validado.
+
+- `201`: lectura validada y almacenada.
+- `403`: dispositivo registrado pero deshabilitado.
+- `404`: dispositivo no registrado.
+- `409`: `message_id` duplicado.
+- `422`: contrato, tipo o rango inválido.
+
+## Persistencia
+
+`devices` conserva nombre, ubicación, intervalo esperado, estado y última comunicación. `telemetry` conserva tiempos de generación y recepción, secuencia, caudal, presión, estado de la válvula y JSON de mediciones. Un índice por dispositivo y fecha prepara las consultas históricas.
 
 ## Decisiones pendientes
 
-Definir con el piloto los rangos hidráulicos, la variación máxima y la regla de alerta. Añadir validación de tipos y rangos en el backend, persistencia SQLite, API de consultas y dashboard. Registrar integrantes y acuerdos de trabajo cuando el equipo los defina.
+Definir con el piloto los rangos hidráulicos y la regla de alerta. El siguiente incremento agregará consultas de dispositivos, última lectura e históricos. Después se desarrollarán alertas y dashboard.
