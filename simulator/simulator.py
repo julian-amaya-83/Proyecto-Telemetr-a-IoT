@@ -1,6 +1,7 @@
 """Simulador hidráulico de telemetría HTTP sin dependencias externas."""
 
 import argparse
+import copy
 import json
 import logging
 import random
@@ -22,6 +23,24 @@ def load_config(path):
     if not required.issubset(config["variables"]):
         raise ValueError("Faltan variables hidráulicas obligatorias")
     return config
+
+
+def get_device_configs(config):
+    devices = config.get("devices")
+    if devices is None:
+        return [config]
+    if not isinstance(devices, list) or not devices:
+        raise ValueError("devices debe ser una lista no vacía")
+    device_configs = []
+    for device in devices:
+        if not isinstance(device, dict) or not device.get("device_id"):
+            raise ValueError("Cada dispositivo debe tener un device_id válido")
+        device_config = copy.deepcopy(config)
+        device_config.update(device)
+        if device_config["interval_seconds"] <= 0:
+            raise ValueError("El intervalo de cada dispositivo debe ser mayor que cero")
+        device_configs.append(device_config)
+    return device_configs
 
 
 class HydraulicSimulator:
@@ -90,29 +109,53 @@ def main():
     parser = argparse.ArgumentParser(description="Simula telemetría hidráulica por HTTP")
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     parser.add_argument("--scenario", choices=SCENARIOS, default="normal")
-    parser.add_argument("--count", type=int, default=0, help="Número de lecturas; 0 = continuo")
+    parser.add_argument("--count", type=int, default=0, help="Lecturas por dispositivo; 0 = continuo")
     parser.add_argument("--dry-run", action="store_true", help="Genera JSON sin enviar HTTP")
     args = parser.parse_args()
     if args.count < 0:
         parser.error("--count no puede ser negativo")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     config = load_config(args.config)
-    simulator = HydraulicSimulator(config, args.scenario)
-    sent = 0
+    device_states = [
+        {
+            "config": device_config,
+            "simulator": HydraulicSimulator(device_config, args.scenario),
+            "sent": 0,
+            "next_send": time.monotonic(),
+        }
+        for device_config in get_device_configs(config)
+    ]
     try:
-        while args.count == 0 or sent < args.count:
-            payload = simulator.next_payload()
-            if args.dry_run:
-                print(json.dumps(payload, ensure_ascii=False))
-            else:
-                try:
-                    status, response = send_payload(config["http_url"], payload, config["timeout_seconds"])
-                    logging.info("%s -> HTTP %s %s", payload["message_id"], status, response)
-                except (error.URLError, TimeoutError) as exc:
-                    logging.error("%s -> conexión fallida: %s", payload["message_id"], exc)
-            sent += 1
-            if args.count == 0 or sent < args.count:
-                time.sleep(config["interval_seconds"])
+        while args.count == 0 or any(state["sent"] < args.count for state in device_states):
+            now = time.monotonic()
+            due_states = [
+                state for state in device_states
+                if state["next_send"] <= now
+                and (args.count == 0 or state["sent"] < args.count)
+            ]
+            if not due_states:
+                next_send = min(
+                    state["next_send"] for state in device_states
+                    if args.count == 0 or state["sent"] < args.count
+                )
+                time.sleep(max(0.01, next_send - now))
+                continue
+            for state in due_states:
+                payload = state["simulator"].next_payload()
+                if args.dry_run:
+                    print(json.dumps(payload, ensure_ascii=False))
+                else:
+                    try:
+                        status, response = send_payload(
+                            state["config"]["http_url"],
+                            payload,
+                            state["config"]["timeout_seconds"],
+                        )
+                        logging.info("%s -> HTTP %s %s", payload["message_id"], status, response)
+                    except (error.URLError, TimeoutError) as exc:
+                        logging.error("%s -> conexión fallida: %s", payload["message_id"], exc)
+                state["sent"] += 1
+                state["next_send"] = time.monotonic() + state["config"]["interval_seconds"]
     except KeyboardInterrupt:
         logging.info("Simulador detenido")
 
