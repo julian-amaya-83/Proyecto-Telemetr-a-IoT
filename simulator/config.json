@@ -4,9 +4,17 @@
   "interval_seconds": 15,
   "timeout_seconds": 5,
   "seed": 42,
+  "devices": [
+    {"device_id": "HYD-001", "seed": 42, "interval_seconds": 5},
+    {"device_id": "HYD-002", "seed": 84, "interval_seconds": 10},
+    {"device_id": "HYD-003", "seed": 21, "interval_seconds": 3},
+    {"device_id": "HYD-004", "seed": 63, "interval_seconds": 7}
+  ],
   "variables": {
     "flow_l_min": {"label": "Caudal", "type": "number", "unit": "L/min", "initial": 0.0, "minimum": 0.0, "maximum": 12.0, "max_variation": 1.5, "decimals": 2, "enabled": true},
     "pressure_kpa": {"label": "Presión", "type": "number", "unit": "kPa", "initial": 200.0, "minimum": 100.0, "maximum": 250.0, "max_variation": 5.0, "decimals": 2, "enabled": true},
     "consumption_valve_open": {"label": "Válvula de consumo abierta", "type": "boolean", "unit": null, "initial": false, "enabled": true}
   }
 }
+
+

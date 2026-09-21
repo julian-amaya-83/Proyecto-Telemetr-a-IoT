@@ -4,11 +4,11 @@ Proyecto inicial para simular lecturas de caudal y presión en un sistema hidrá
 
 ## Estado
 
-El repositorio contiene el simulador HTTP, un receptor temporal para pruebas locales y pruebas automatizadas del generador. El backend con validación y SQLite de la Guía 3 es el siguiente incremento. MQTT queda para una implementación futura.
+El repositorio contiene un simulador HTTP de cuatro dispositivos, un receptor temporal para pruebas locales y pruebas automatizadas del generador. Cada dispositivo conserva su propia secuencia, estado hidráulico, semilla e intervalo de envío. El backend con validación y SQLite de la Guía 3 es el siguiente incremento. MQTT queda para una implementación futura.
 
 ## Estructura
 
-- `simulator/config.json`: dispositivo, URL, intervalo y fichas iniciales de variables.
+- `simulator/config.json`: dispositivos, URL, intervalos y fichas iniciales de variables.
 - `simulator/simulator.py`: escenarios y envío HTTP POST.
 - `simulator/receiver_test.py`: receptor temporal que imprime lecturas; no persiste datos.
 - `tests/test_simulator.py`: pruebas de contrato, rangos y escenarios.
@@ -42,7 +42,18 @@ Terminal 2:
 python -m simulator.simulator --scenario fuga --count 5
 ```
 
-El receptor debe imprimir cinco mensajes y el simulador debe registrar cinco respuestas HTTP 201. El intervalo predeterminado es de 15 segundos; puede cambiarse en `simulator/config.json`. Detenga el receptor con Ctrl+C.
+`--count 5` genera cinco mensajes por dispositivo, es decir, veinte mensajes en total. El receptor debe imprimirlos y el simulador debe registrar respuestas HTTP 201. Detenga el receptor con Ctrl+C.
+
+## Dispositivos e intervalos
+
+| Dispositivo | Intervalo |
+|---|---:|
+| `HYD-001` | 5 segundos |
+| `HYD-002` | 10 segundos |
+| `HYD-003` | 3 segundos |
+| `HYD-004` | 7 segundos |
+
+Los cuatro dispositivos comienzan su primera lectura al iniciar el programa. Después, cada uno continúa de acuerdo con su intervalo. Los intervalos pueden modificarse en `simulator/config.json`.
 
 ## Ejecutar pruebas
 
@@ -52,7 +63,7 @@ python -m unittest discover -s tests -v
 
 ## Contrato de telemetría
 
-Cada POST a `/api/telemetry` incluye `message_id`, `device_id`, `timestamp` UTC, `sequence` y `measurements`. Un ciclo genera un mensaje con las tres variables habilitadas. `message_id` incorpora un identificador de ejecución para no repetirse tras reiniciar el simulador.
+Cada POST a `/api/telemetry` incluye `message_id`, `device_id`, `timestamp` UTC, `sequence` y `measurements`. Cada envío contiene las tres variables habilitadas. `message_id` incorpora el dispositivo, un identificador de ejecución y la secuencia para no repetirse entre dispositivos ni tras reiniciar el simulador.
 
 ## Decisiones pendientes
 
