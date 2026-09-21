@@ -4,7 +4,12 @@ from pathlib import Path
 from http.server import HTTPServer
 
 from simulator.receiver_test import Handler
-from simulator.simulator import HydraulicSimulator, load_config, send_payload
+from simulator.simulator import (
+    HydraulicSimulator,
+    get_device_configs,
+    load_config,
+    send_payload,
+)
 
 
 CONFIG = Path(__file__).resolve().parents[1] / "simulator" / "config.json"
@@ -33,6 +38,24 @@ class SimulatorTests(unittest.TestCase):
                 self.assertLessEqual(values[name], spec["maximum"])
                 self.assertLessEqual(abs(values[name] - previous[name]), spec["max_variation"] + 0.001)
                 previous[name] = values[name]
+
+    def test_four_devices_have_unique_ids_and_intervals(self):
+        devices = get_device_configs(self.config)
+        self.assertEqual(len(devices), 4)
+        self.assertEqual(
+            [device["device_id"] for device in devices],
+            ["HYD-001", "HYD-002", "HYD-003", "HYD-004"],
+        )
+        self.assertEqual(
+            [device["interval_seconds"] for device in devices],
+            [5, 10, 3, 7],
+        )
+        payloads = [HydraulicSimulator(device).next_payload() for device in devices]
+        self.assertEqual(
+            {payload["device_id"] for payload in payloads},
+            {"HYD-001", "HYD-002", "HYD-003", "HYD-004"},
+        )
+        self.assertEqual(len({payload["message_id"] for payload in payloads}), 4)
 
     def test_leak_has_flow_with_consumption_valve_closed(self):
         simulator = HydraulicSimulator(self.config, "fuga")
