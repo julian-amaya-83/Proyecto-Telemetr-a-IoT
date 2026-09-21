@@ -20,13 +20,14 @@ class SimulatorTests(unittest.TestCase):
         self.config = load_config(CONFIG)
 
     def test_contract_and_gradual_changes(self):
-        simulator = HydraulicSimulator(self.config, "normal")
+        device_config = get_device_configs(self.config)[0]
+        simulator = HydraulicSimulator(device_config, "normal")
         previous = {"flow_l_min": 0.0, "pressure_kpa": 200.0}
         ids = set()
         for sequence in range(1, 30):
             payload = simulator.next_payload()
             self.assertEqual(payload["sequence"], sequence)
-            self.assertEqual(payload["device_id"], "HYD-001")
+            self.assertEqual(payload["device_id"], device_config["device_id"])
             self.assertTrue(payload["timestamp"].endswith("Z"))
             self.assertNotIn(payload["message_id"], ids)
             ids.add(payload["message_id"])
@@ -58,13 +59,13 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(len({payload["message_id"] for payload in payloads}), 4)
 
     def test_leak_has_flow_with_consumption_valve_closed(self):
-        simulator = HydraulicSimulator(self.config, "fuga")
+        simulator = HydraulicSimulator(get_device_configs(self.config)[0], "fuga")
         readings = [simulator.next_payload()["measurements"] for _ in range(6)]
         self.assertTrue(all(not r["consumption_valve_open"] for r in readings))
         self.assertGreater(readings[-1]["flow_l_min"], 0.2)
 
     def test_anomalous_consumption_keeps_valve_open(self):
-        simulator = HydraulicSimulator(self.config, "consumo_anomalo")
+        simulator = HydraulicSimulator(get_device_configs(self.config)[0], "consumo_anomalo")
         readings = [simulator.next_payload()["measurements"] for _ in range(6)]
         self.assertTrue(all(r["consumption_valve_open"] for r in readings))
         self.assertGreater(readings[-1]["flow_l_min"], 3.0)
@@ -74,7 +75,7 @@ class SimulatorTests(unittest.TestCase):
         thread = threading.Thread(target=server.handle_request)
         thread.start()
         try:
-            payload = HydraulicSimulator(self.config).next_payload()
+            payload = HydraulicSimulator(get_device_configs(self.config)[0]).next_payload()
             status, response = send_payload(
                 f"http://127.0.0.1:{server.server_port}/api/telemetry", payload, 2
             )

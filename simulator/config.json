@@ -1,14 +1,11 @@
 {
-  "device_id": "HYD-001",
   "http_url": "http://127.0.0.1:8000/api/telemetry",
-  "interval_seconds": 15,
   "timeout_seconds": 5,
-  "seed": 42,
   "devices": [
-    {"device_id": "HYD-001", "seed": 42, "interval_seconds": 5},
-    {"device_id": "HYD-002", "seed": 84, "interval_seconds": 10},
-    {"device_id": "HYD-003", "seed": 21, "interval_seconds": 3},
-    {"device_id": "HYD-004", "seed": 63, "interval_seconds": 7}
+    {"device_id": "HYD-001", "name": "Ramal experimental 1", "location": "Zona A", "seed": 42, "interval_seconds": 5, "scenario": "normal", "enabled": true},
+    {"device_id": "HYD-002", "name": "Ramal experimental 2", "location": "Zona B", "seed": 84, "interval_seconds": 10, "scenario": "consumo_anomalo", "enabled": true},
+    {"device_id": "HYD-003", "name": "Ramal experimental 3", "location": "Zona C", "seed": 21, "interval_seconds": 3, "scenario": "fuga", "enabled": true},
+    {"device_id": "HYD-004", "name": "Ramal experimental 4", "location": "Zona D", "seed": 63, "interval_seconds": 7, "scenario": "normal", "enabled": true}
   ],
   "variables": {
     "flow_l_min": {"label": "Caudal", "type": "number", "unit": "L/min", "initial": 0.0, "minimum": 0.0, "maximum": 12.0, "max_variation": 1.5, "decimals": 2, "enabled": true},
@@ -16,5 +13,3 @@
     "consumption_valve_open": {"label": "Válvula de consumo abierta", "type": "boolean", "unit": null, "initial": false, "enabled": true}
   }
 }
-
-
